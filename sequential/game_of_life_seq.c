@@ -383,12 +383,18 @@ int SearchMap (void)
 int CalcDoA (int x, int y, int z)
 {
 	char cell;
-	char * pMap = _pMap;
+	char * pMap;
 	int nLiv = 0;
 	int xStart, yStart, zStart, xRep, yRep, zRep;
 	int i, j, k;
 	
 	// 검사할 세포의 상태 로드
+#ifdef __BASIC
+	pMap = _ppMap;
+#endif
+#ifdef __ADVANCE
+	pMap = _pMap;
+#endif
 	pMap += (z * _iMapSize * _iMapSize) + (y * _iMapSize) + x;
 	cell = *pMap;
 	
@@ -425,7 +431,12 @@ int CalcDoA (int x, int y, int z)
 	}
 		
 	// 검사 시작 위치 설정
+#ifdef __BASIC
+	pMap = _ppMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
+#endif
+#ifdef __ADVANCE
 	pMap = _pMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
+#endif
 	
 	// 살아있는 세포 갯수 체크
 	for (i = 0 ; i < zRep; i++) {
