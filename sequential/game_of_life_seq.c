@@ -7,11 +7,13 @@
 #include <sys/time.h>
 
 //#define __TESTINPUT
-//#define __TESTBASIC
-#define __TESTPOOL
+//#define __TESTPOOL
 
-#define __BASIC
-//#define __ADVANCED
+//#define __BASIC
+//#define __TESTBASIC
+
+#define __ADVANCE
+//#define __TESTADV
 
 
 
@@ -34,13 +36,13 @@ struct list {
 
 ////// Function Declaration
 void init (void);
-
 void LifeGame(void);
+void Out (void);
 
 // Game of Life Function
 int SearchMap (void);
 int CalcDoA (int x, int y, int z);
-int MakeChange (int x, int y, int z);
+void MakeChange (int x, int y, int z);
 
 // List 관리
 void ListInit (struct list * head, int * listcnt);
@@ -52,8 +54,8 @@ struct list * PoolGet (void);
 void PoolFree (struct list * node);
 
 // Change list, map 관리
-void ChangeInsert (void);
-void ChangeDelete (void);
+void ChangeInsert (int x, int y, int z, char * CMapPos);
+struct list * ChangePop (void);
 
 ////// Function Declaration End
 
@@ -78,10 +80,8 @@ char * _ppMap;
 char * _ppNMap;
 #endif
 
-#ifdef __ADVANCED
 // Changed Cell Map
 char * _pCMap;
-#endif
 
 // list of the Cell need to change
 struct list _lChange;
@@ -103,8 +103,8 @@ int _iPoolEmptyCnt = 0;
 int main (void)
 {
 	init ();
-	
 	LifeGame();
+	Out ();
 	
 	return 0;
 }
@@ -155,12 +155,12 @@ void init (void)
 	#ifdef __BASIC
 	_pAMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	#endif
-	#ifdef __ADVANCED
+	#ifdef __ADVANCE
 	_pCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	#endif
 		
 	pMap = _pMap;
-	#ifdef __ADVANCED
+	#ifdef __ADVANCE
 	pCMap = _pCMap;
 	#endif
 	for (i = 0; i < _iMapSize; i++) {
@@ -180,7 +180,7 @@ void init (void)
 				
 				pMap++;
 								
-				#ifdef __ADVANCED
+				#ifdef __ADVANCE
 				*pCMap = 0;
 				pCMap++;
 				#endif
@@ -197,10 +197,10 @@ void init (void)
 	_ppNMap = _pAMap;
 	#endif
 	
-	#ifdef __ADVANCED
+	#ifdef __ADVANCE
 	// List Initialize
 	ListInit (&_lPool, &_iPoolCnt);
-	ListInit (&_lChange, &iChangeCnt);
+	ListInit (&_lChange, &_iChangeCnt);
 	
 	// Calculate which cell can be changed the status
 	for (i = 0; i < _iMapSize; i++) {
@@ -208,11 +208,16 @@ void init (void)
 			for (k = 0; k < _iMapSize; k++) {
 				// 좌표에서 변화 가능 여부를 계산해서 Change List에 입력
 				if (CalcDoA (k, j, i) == 1) {
-					ChangeInsert (k, j, i);
+					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
+					ChangeInsert (k, j, i, pCMap);
 				}
 			}
 		}
 	}
+	#endif
+	
+	#ifdef __TESTADV
+	printf ("Initial Change List [ %d ]\n", _iChangeCnt);
 	#endif
 }
 
@@ -244,10 +249,10 @@ void LifeGame (void)
 		SearchMap();
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
-		_ppNMap = _ppMap;
+		_ppNMap = ppTmp;
 		#endif
 		
-		#ifdef __ADVANCED
+		#ifdef __ADVANCE
 		// 한 차수만큼 진행시키고 변화된 세포의 갯수를 검사한다
 		if (SearchMap () == 0) {
 			// 아무런 세포도 바뀌지 않았을 경우 바로 종료한다
@@ -263,11 +268,48 @@ void LifeGame (void)
 }
 
 
+void Out (void)
+{
+	FILE *ofp;
+	int i, j, k;
+	char * pMap;
+	char cTmp;
+	
+	ofp = fopen ("input.sol", "w");
+	if (ofp == NULL) {
+		printf ("Output File Open Failed\n");
+		exit(-1);
+	}
+	
+#ifdef __BASIC
+	pMap = _ppMap;
+#endif
+#ifdef __ADVANCE
+	pMap = _pMap;
+#endif	
+	
+	for (i=0; i < _iMapSize; i++) {
+		for (j=0; j < _iMapSize; j++) {
+			for (k=0; k < _iMapSize; k++) {
+				cTmp = (char)((int)*pMap + 0x30);
+				fprintf(ofp, "%c ", cTmp);
+				pMap++;
+			}
+			fprintf(ofp, "\n");
+		}
+		fprintf(ofp, "\n");
+	}
+}
+
+
 // 변경 리스트를 따라 한 차수의 맵을 갱신한다
-// 이번에 변경 된 cell의 갯수를 반환한다
+// 다음에 검사해야 할 세포의 갯수를 반환한다
 int SearchMap (void)
 {
 #ifdef __BASIC
+#ifdef __TESTBASIC
+	int ChangeCnt = 0;
+#endif
 	int i, j, k;
 	char * ppMap, * ppNMap;
 	
@@ -279,6 +321,9 @@ int SearchMap (void)
 			for (k=0; k < _iMapSize; k++) {
 				if (CalcDoA (k, j, i) == 1) {
 					*ppNMap = *ppMap ^ 0x01;
+					#ifdef __TESTBASIC
+					ChangeCnt++;
+					#endif
 				} else {
 					*ppNMap = *ppMap;
 				}
@@ -288,25 +333,46 @@ int SearchMap (void)
 		}
 	}
 	
+	#ifdef __TESTBASIC
+	printf ("Change Cnt [ %d ]\n", ChangeCnt);
+	#endif
+	
 	return 0;
 #endif
 
-#ifdef __ADVANCED	
+#ifdef __ADVANCE	
 	int ChangeCnt = _iChangeCnt;
 	int i;
-	// 차수 시작할 때 Change List에 있는 node에 대해서만 변화 검사
+	char * pChar;
+	struct list * pList;
+	
+	// 차수 시작할 때 Change List에 있는 node에 대해서만 변화 검사 (중복 검사 방지)
 	for (i = 0; i < ChangeCnt; i++) {
 		// 변경 List에서 Node를 Pop 한다
+		pList = ChangePop ();
 	
-		// 상태 변화 맵에서 bit를 0으로 바꾸고 상태 변화를 검사한다
-	
-		// 변화된 세포는 리스트 뒤에 추가해서 재검사를 막는다
+		// 상태 변화를 검사한다
+		if (CalcDoA (pList->p.x, pList->p.y, pList->p.z) == 1) {
+			// 변화된 세포는 변화 리스트 뒤에 다시 추가한다
+			ListPush (&_lChange, pList, &_iChangeCnt);
+			
+		} else {
+			// 변화가 없을 경우 node 반환
+			PoolFree (pList);
+		}
 	}
 	
 	// 변화된 세포들에 대해 맵을 갱신하고 리스트에 추가적으로 등록한다
-	for (i = 0; i < _iChangeCnt; i++) {
-		// 
+	ChangeCnt = _iChangeCnt;
+	for (i = 0; i < ChangeCnt; i++) {
+		pList = ChangePop ();
+		
+		MakeChange (pList->p.x, pList->p.y, pList->p.z);
+		
+		PoolFree (pList);
 	}
+	
+	return _iChangeCnt;
 #endif
 }
 
@@ -395,13 +461,67 @@ int CalcDoA (int x, int y, int z)
 }
 
 
-// 세포 위치를 입력받아 상태를 반전시키고 상태 변화 리스트와 맵에 주위 셀과 함께 등록한다
-int MakeChange (int x, int y, int z)
+// 세포 위치를 입력받아 세포 상태를 갱신하고 주위 셀과 함께 Change map에 입력하고 새로 추가해야 할 경우 List에도 등록한다
+void MakeChange (int x, int y, int z)
 {
-	// 상태를 반전시킨다
+	int ix, iy, iz;
+	int xRep, yRep, zRep;
+	int xStart, yStart, zStart;
 	
+	char * pChar;
+	
+	// 세포 상태 갱신
+	pChar = _pMap + ((z * _iMapSize + y) * _iMapSize) + x;
+	*pChar = *pChar ^ 0x01;
+		
 	// 상태 변화 맵에 자기 자신과 주위 세포에 변화 여부를 기록하고 변화하는 세포들을 리스트에 등록한다
+	// 위치에 따른 검사 시작점과 반복 횟수 설정
+	if (x == 0) {
+		xRep = 2;
+		xStart = x;
+	} else if (x == _iMapSize-1){
+		xRep = 2;
+		xStart = x-1;
+	} else {
+		xRep = 3;
+		xStart = x-1;
+	}
+	if (y == 0) {
+		yRep = 2;
+		yStart = y;
+	} else if (y == _iMapSize-1) {
+		yRep = 2;
+		yStart = y-1;
+	} else {
+		yRep = 3;
+		yStart = y-1;
+	}
+	if (z == 0) {
+		zRep = 2;
+		zStart = z;
+	} else if (z == _iMapSize-1) {
+		zRep = 2;
+		zStart = z-1;
+	} else {
+		zRep = 3;
+		zStart = z-1;
+	}
+		
+	// 검사 시작 위치 설정
+	pChar = _pCMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
 	
+	for (iz = 0; iz < zRep; iz++) {
+		for (iy = 0; iy < yRep; iy++) {
+			for (ix = 0; ix < xRep; ix++) {
+				ChangeInsert(xStart + ix, yStart + iy, zStart + iz, pChar);
+				pChar++;
+			}
+			pChar += _iMapSize - xRep;
+		}
+		pChar += _iMapSize * (_iMapSize - yRep);
+	}
+	
+	return;
 }
 
 
@@ -415,8 +535,8 @@ struct list * ListPop (struct list * head, int * listcnt)
 		return NULL;
 	}
 	
+	// list에서 pop
 	pTmp = head->next;	
-	// list에서 삭제
 	pTmp->next->prev = head;
 	head->next = pTmp->next;
 	(*listcnt)--;
@@ -427,14 +547,12 @@ struct list * ListPop (struct list * head, int * listcnt)
 
 // 전달 받은 head의 맨 뒤에 전달 받은 node를 push 한다
 void ListPush (struct list * head, struct list * node, int * listcnt)
-{
-	struct list * pTmp;
-	
-	// List에 삽입
-	pTmp->next = head->next;
-	pTmp->prev = head;
-	head->next->prev = pTmp;
-	head->next = pTmp;	
+{	
+	// List의 맨 뒤에 삽입
+	node->next = head;
+	node->prev = head->prev;
+	head->prev->next = node;
+	head->prev = node;
 	(*listcnt)++;
 	
 	return;
@@ -478,11 +596,51 @@ void PoolFree (struct list * node)
 	ListPush (&_lPool, node, &_iPoolCnt);
 }
 
-void ChangeInsert (void)
+
+// Change Map에 1로 표시하고 중복되지 않을 경우 Change List에 Insert 한다
+// x, y, z 좌표와 Change Map에서 위치를 입력받는다
+void ChangeInsert (int x, int y, int z, char * CMapPos)
 {
+	struct list *pTmp;
+	
+	// Change Map에서 0일 경우에만
+	// 1로 변경하고 Change List에 Push
+	if (*CMapPos == 0) {
+		*CMapPos = 1;
+		
+		pTmp = PoolGet ();
+		pTmp->p.x = x;
+		pTmp->p.y = y;
+		pTmp->p.z = z;
+		ListPush (&_lChange, pTmp, &_iChangeCnt); 
+	}
+	
+	return;
 }
 
-void ChangeDelete (void)
+
+// Change Map에서 1로 표기된 것을 0으로 바꾸고 Change List에서 반환한다
+// Change List가 비었을 경우 NULL을 반환한다
+struct list * ChangePop (void)
 {
+	char * pChar;
+	struct list * pTmp;
+	int x, y, z;
+	
+	// Change List에서 node를 pop
+	pTmp = ListPop (&_lChange, &_iChangeCnt);
+	
+	if (pTmp != NULL) {
+		// 해당 위치를 Change Map에서 1을 0으로 변경
+		x = pTmp->p.x;
+		y = pTmp->p.y;
+		z = pTmp->p.z;
+		
+		pChar = _pCMap + ((z * _iMapSize + y) * _iMapSize) + x;
+		*pChar = 0;
+	}
+	
+	return pTmp;
 }
+
 
