@@ -8,8 +8,11 @@
 
 //#define __TESTINPUT
 //#define __TESTBASIC
+#define __TESTPOOL
+
 #define __BASIC
 //#define __ADVANCED
+
 
 
 ////// Struct Declaration
@@ -21,9 +24,10 @@ struct pos {
 
 struct list {
 	struct list * next;
-	struct pos p;
 	struct list * prev;
+	struct pos p;
 };
+
 ////// Struct End
 
 
@@ -39,8 +43,9 @@ int CalcDoA (int x, int y, int z);
 int MakeChange (int x, int y, int z);
 
 // List 관리
-struct list * ListPop (struct list * head);
-void ListPush (struct list * head, struct list * node);
+void ListInit (struct list * head, int * listcnt);
+struct list * ListPop (struct list * head, int * listcnt);
+void ListPush (struct list * head, struct list * node, int * listcnt);
 
 // Node pool 관리
 struct list * PoolGet (void);
@@ -85,6 +90,11 @@ int _iChangeCnt = 0;
 // Memory Pool
 struct list _lPool;
 int _iPoolCnt = 0;
+
+// Test Value
+#ifdef __TESTPOOL
+int _iPoolEmptyCnt = 0;
+#endif
 
 ////// Global Variable End
 
@@ -186,7 +196,12 @@ void init (void)
 	_ppMap = _pMap;
 	_ppNMap = _pAMap;
 	#endif
+	
 	#ifdef __ADVANCED
+	// List Initialize
+	ListInit (&_lPool, &_iPoolCnt);
+	ListInit (&_lChange, &iChangeCnt);
+	
 	// Calculate which cell can be changed the status
 	for (i = 0; i < _iMapSize; i++) {
 		for (j = 0; j < _iMapSize; j++) {
@@ -390,24 +405,77 @@ int MakeChange (int x, int y, int z)
 }
 
 
-struct list * ListPop (struct list * head)
+// 전달 받은 head에서 가장 처음 있는 node를 pop한다
+// List에 node가 없을 경우 NULL을 반환한다
+struct list * ListPop (struct list * head, int * listcnt)
 {
+	struct list * pTmp;
+	
+	if (*listcnt == 0) {
+		return NULL;
+	}
+	
+	pTmp = head->next;	
+	// list에서 삭제
+	pTmp->next->prev = head;
+	head->next = pTmp->next;
+	(*listcnt)--;
+	
+	return pTmp;
 }
 
-void ListPush (struct list * head, struct list * node)
+
+// 전달 받은 head의 맨 뒤에 전달 받은 node를 push 한다
+void ListPush (struct list * head, struct list * node, int * listcnt)
 {
+	struct list * pTmp;
+	
+	// List에 삽입
+	pTmp->next = head->next;
+	pTmp->prev = head;
+	head->next->prev = pTmp;
+	head->next = pTmp;	
+	(*listcnt)++;
+	
+	return;
 }
 
+
+// List를 초기화 한다
+void ListInit (struct list * head, int * listcnt)
+{
+	head->next = head;
+	head->prev = head;	
+	*listcnt = 0;
+}
+
+// Free된 좌표 structure가 저장 된 pool에서 메모리를 가져오고 pool이 비었을 경우 새로 할당한다
 struct list * PoolGet (void)
 {
+	struct list * pTmp;
+	
 	// pool이 비었을 경우 새로 node를 할당
 	if (_iPoolCnt == 0) {
+		#ifdef __TESTPOOL
+		_iPoolEmptyCnt++;
+		#endif
+		pTmp = malloc (sizeof (struct list));
+		
+		return pTmp;
+		
+	// Pool에 node가 있을 경우 Pool에서 node를 반출
+	} else {
+		pTmp = ListPop (&_lPool, &_iPoolCnt);
+		
+		return pTmp;
 	}
 }
 
+// 좌표 structure의 사용이 끝났을 경우 pool에 반환한다.
 void PoolFree (struct list * node)
 {
-	// Pool List Head에 node를 등록
+	// Pool List에 Node를 입력
+	ListPush (&_lPool, node, &_iPoolCnt);
 }
 
 void ChangeInsert (void)
