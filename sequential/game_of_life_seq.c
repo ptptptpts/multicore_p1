@@ -360,6 +360,7 @@ int CalcDoA (int x, int y, int z)
 	
 	// 살아있는 세포 검사
 	if (cell == 1) {
+		nLiv--;	// 자기 자신은 카운트에서 제외
 		// 사망 검사
 		if ((nLiv < _iD1) || (nLiv > _iD2)) {
 			return 1;
