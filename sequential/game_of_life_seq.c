@@ -13,7 +13,7 @@
 //#define __TESTBASIC
 
 #define __ADVANCE
-#define __TESTADV
+//#define __TESTADV
 
 
 
@@ -232,6 +232,7 @@ void LifeGame (void)
 		
 	#ifdef __BASIC
 	char * ppTmp;
+	int ChangeCnt;
 	#endif
 	
 	#ifdef __TESTBASIC
@@ -247,10 +248,14 @@ void LifeGame (void)
 		printf ("%dth Loop\n", i);
 		#endif
 		
-		SearchMap();
+		ChangeCnt = SearchMap();
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
 		_ppNMap = ppTmp;
+		
+		if (ChangeCnt == 0) {
+			break;
+		}
 		#endif
 		
 		#ifdef __ADVANCE
@@ -307,10 +312,7 @@ void Out (void)
 int SearchMap (void)
 {
 #ifdef __BASIC
-#ifdef __TESTBASIC
-	int ChangeCnt = 0;
-#endif
-	int i, j, k;
+	int i, j, k, ChangeCnt = 0;
 	char * ppMap, * ppNMap;
 	
 	ppMap = _ppMap;
@@ -321,9 +323,7 @@ int SearchMap (void)
 			for (k=0; k < _iMapSize; k++) {
 				if (CalcDoA (k, j, i) == 1) {
 					*ppNMap = *ppMap ^ 0x01;
-					#ifdef __TESTBASIC
 					ChangeCnt++;
-					#endif
 				} else {
 					*ppNMap = *ppMap;
 				}
@@ -337,7 +337,7 @@ int SearchMap (void)
 	printf ("Change Cnt [ %d ]\n", ChangeCnt);
 	#endif
 	
-	return 0;
+	return ChangeCnt;
 #endif
 
 #ifdef __ADVANCE	
@@ -373,7 +373,7 @@ int SearchMap (void)
 	// 변화된 세포들에 대해 맵을 갱신하고 리스트에 추가적으로 등록한다
 	ChangeCnt = _iChangeCnt;
 	for (i = 0; i < ChangeCnt; i++) {
-		pList = ChangePop ();
+		pList = ListPop (&_lChange, &_iChangeCnt);
 		
 		MakeChange (pList->p.x, pList->p.y, pList->p.z);
 		
@@ -382,6 +382,7 @@ int SearchMap (void)
 	
 	#ifdef __TESTADV
 	printf ("Next Change List [ %d ]\n", _iChangeCnt);
+	printf ("Pool Cnt [ %d ]\n", _iPoolCnt);
 	#endif
 	
 	return _iChangeCnt;
@@ -654,7 +655,7 @@ struct list * ChangePop (void)
 	pTmp = ListPop (&_lChange, &_iChangeCnt);
 	
 	if (pTmp != NULL) {
-		// 해당 위치를 Change Map에서 1을 0으로 변경
+		// 해당 위치의 Change Map을 0으로 변경
 		x = pTmp->p.x;
 		y = pTmp->p.y;
 		z = pTmp->p.z;
