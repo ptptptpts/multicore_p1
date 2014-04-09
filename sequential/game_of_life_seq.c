@@ -9,19 +9,18 @@
 //#define __TESTINPUT
 //#define __TESTPOOL
 
-//#define __BASIC
+#define __BASIC
 //#define __TESTBASIC
 
-#define __ADVANCE
+//#define __ADVANCE
 //#define __TESTADV
-
 
 
 ////// Struct Declaration
 struct pos {
-	int x;
-	int y;
-	int z;
+	short x;
+	short y;
+	short z;
 };
 
 struct list {
@@ -38,6 +37,8 @@ struct list {
 void init (void);
 void LifeGame(void);
 void Out (void);
+
+void Terminate (void);
 
 // Game of Life Function
 int SearchMap (void);
@@ -76,8 +77,12 @@ char * _pMap;
 
 #ifdef __BASIC
 char * _pAMap;
+char * _pNCMap;
+
 char * _ppMap;
 char * _ppNMap;
+char * _ppCMap;
+char * _ppNCMap;
 #endif
 
 // Changed Cell Map
@@ -106,6 +111,8 @@ int main (void)
 	LifeGame();
 	Out ();
 	
+	Terminate ();
+	
 	return 0;
 }
 
@@ -116,6 +123,11 @@ void init (void)
 	int i, j, k;
 	char *pMap, *pCMap;
 	char *str, *str2, *tok;
+
+#ifdef __BASIC
+	char *pNCMap;
+#endif
+	
 	
 	str = malloc (100);
 	
@@ -154,15 +166,17 @@ void init (void)
 	_pMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	#ifdef __BASIC
 	_pAMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
+	_pNCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	#endif
-	#ifdef __ADVANCE
+	
 	_pCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
-	#endif
 		
 	pMap = _pMap;
-	#ifdef __ADVANCE
 	pCMap = _pCMap;
-	#endif
+#ifdef __BASIC
+	pNCMap = _pNCMap;
+#endif
+	
 	for (i = 0; i < _iMapSize; i++) {
 		for (j = 0; j < _iMapSize; j++) {
 			fgets (str, _iMapSize * 3, stdin);
@@ -180,9 +194,12 @@ void init (void)
 				
 				pMap++;
 								
-				#ifdef __ADVANCE
 				*pCMap = 0;
 				pCMap++;
+				
+				#ifdef __BASIC
+				*pNCMap = 0;
+				pNCMap++;
 				#endif
 			}
 						
@@ -195,27 +212,41 @@ void init (void)
 	#ifdef __BASIC
 	_ppMap = _pMap;
 	_ppNMap = _pAMap;
+	
+	_ppCMap = _pCMap;
+	_ppNCMap = _pNCMap;
 	#endif
 	
 	#ifdef __ADVANCE
 	// List Initialize
 	ListInit (&_lPool, &_iPoolCnt);
 	ListInit (&_lChange, &_iChangeCnt);
+	#endif
 	
 	// Calculate which cell can be changed the status
 	for (i = 0; i < _iMapSize; i++) {
 		for (j = 0; j < _iMapSize; j++) {
 			for (k = 0; k < _iMapSize; k++) {
-				// 좌표에서 변화 가능 여부를 계산해서 Change List에 입력
-				if (1) {
-				//if (CalcDoA (k, j, i) == 1) {
+				
+				// 초기 입력값에서 변화 여부를 계산
+				if (CalcDoA (k, j, i) == 1) {
+					
+					// 변화가 있는 값들만 따로 정리
 					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
+					
+					#ifdef __BASIC
+					*pCMap = 1;
+					#endif
+					
+					#ifdef __ADVANCE
 					ChangeInsert (k, j, i, pCMap);
+					#endif
 				}
+				
 			}
 		}
 	}
-	#endif
+	
 	
 	#ifdef __TESTADV
 	printf ("Initial Change List [ %d ]\n", _iChangeCnt);
@@ -249,9 +280,14 @@ void LifeGame (void)
 		#endif
 		
 		ChangeCnt = SearchMap();
+		
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
 		_ppNMap = ppTmp;
+		
+		ppTmp = _ppCMap;
+		_ppCMap = _ppNCMap;
+		_ppNCMap = ppTmp;
 		
 		if (ChangeCnt == 0) {
 			break;
@@ -274,6 +310,7 @@ void LifeGame (void)
 }
 
 
+// 파일 출력
 void Out (void)
 {
 	FILE *ofp;
@@ -307,28 +344,59 @@ void Out (void)
 }
 
 
+// dynamic allocation 된 memory 영역 해제
+void Terminate (void) 
+{
+#ifdef __ADVANCE
+	struct list * pList;
+	int i;
+	
+	while (_iPoolCnt != 0) {
+		pList = PoolGet ();
+		
+		free (pList);
+	}
+	
+	return;
+#endif
+}
+
 // 변경 리스트를 따라 한 차수의 맵을 갱신한다
 // 다음에 검사해야 할 세포의 갯수를 반환한다
 int SearchMap (void)
 {
 #ifdef __BASIC
 	int i, j, k, ChangeCnt = 0;
-	char * ppMap, * ppNMap;
+	char * ppMap, * ppNMap, *ppCMap, *ppNCMap;
 	
 	ppMap = _ppMap;
 	ppNMap = _ppNMap;
+	ppCMap = _ppCMap;
+	ppNCMap = _ppNCMap;
 	
 	for (i=0; i < _iMapSize; i++) {
 		for (j=0; j < _iMapSize; j++) {
 			for (k=0; k < _iMapSize; k++) {
-				if (CalcDoA (k, j, i) == 1) {
-					*ppNMap = *ppMap ^ 0x01;
-					ChangeCnt++;
+				
+				if (*ppCMap == 1) {
+					*ppCMap = 0; // 검사 완료 된 셀을 초기화
+					
+					if (CalcDoA (k, j, i) == 1) {						
+						MakeChange (k, j, i); // 변했을 경우 주위 셀을 다음 Change map에 추가
+						*ppNMap = *ppMap ^ 0x01;	// 다음 상태 반전으로 입력
+						ChangeCnt++;
+						
+					} else {
+						*ppNMap = *ppMap;
+					}
+					
 				} else {
 					*ppNMap = *ppMap;
 				}
+				
 				ppMap++;
 				ppNMap++;
+				ppCMap++;
 			}
 		}
 	}
@@ -494,9 +562,11 @@ void MakeChange (int x, int y, int z)
 	
 	char * pChar;
 	
+#ifdef __ADVANCE
 	// 세포 상태 갱신
 	pChar = _pMap + ((z * _iMapSize + y) * _iMapSize) + x;
 	*pChar = *pChar ^ 0x01;
+#endif
 		
 	// 상태 변화 맵에 자기 자신과 주위 세포에 변화 여부를 기록하고 변화하는 세포들을 리스트에 등록한다
 	// 위치에 따른 검사 시작점과 반복 횟수 설정
@@ -531,13 +601,25 @@ void MakeChange (int x, int y, int z)
 		zStart = z-1;
 	}
 		
-	// 검사 시작 위치 설정
+	// 입력 시작 위치 설정
+#ifdef __BASIC
+	pChar = _ppNCMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
+#endif
+#ifdef __ADVANCE
 	pChar = _pCMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
+#endif
 	
 	for (iz = 0; iz < zRep; iz++) {
 		for (iy = 0; iy < yRep; iy++) {
 			for (ix = 0; ix < xRep; ix++) {
+				
+				#ifdef __BASIC
+				*pChar = 1;
+				#endif
+				#ifdef __ADVANCE
 				ChangeInsert(xStart + ix, yStart + iy, zStart + iz, pChar);
+				#endif
+				
 				pChar++;
 			}
 			pChar += _iMapSize - xRep;
