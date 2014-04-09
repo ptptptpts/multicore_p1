@@ -350,15 +350,24 @@ void Terminate (void)
 #ifdef __ADVANCE
 	struct list * pList;
 	int i;
+#endif
+
+	free (_pMap);	
+	#ifdef __BASIC
+	free (_pAMap);
+	free (_pNCMap);
+	#endif	
+	free (_pCMap);
 	
+#ifdef __ADVANCE
 	while (_iPoolCnt != 0) {
 		pList = PoolGet ();
 		
 		free (pList);
 	}
+#endif
 	
 	return;
-#endif
 }
 
 // 변경 리스트를 따라 한 차수의 맵을 갱신한다
