@@ -13,7 +13,7 @@
 //#define __TESTBASIC
 
 #define __ADVANCE
-//#define __TESTADV
+#define __TESTADV
 
 
 
@@ -207,7 +207,8 @@ void init (void)
 		for (j = 0; j < _iMapSize; j++) {
 			for (k = 0; k < _iMapSize; k++) {
 				// 좌표에서 변화 가능 여부를 계산해서 Change List에 입력
-				if (CalcDoA (k, j, i) == 1) {
+				if (1) {
+				//if (CalcDoA (k, j, i) == 1) {
 					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
 					ChangeInsert (k, j, i, pCMap);
 				}
@@ -297,7 +298,6 @@ void Out (void)
 			}
 			fprintf(ofp, "\n");
 		}
-		fprintf(ofp, "\n");
 	}
 }
 
@@ -346,6 +346,10 @@ int SearchMap (void)
 	char * pChar;
 	struct list * pList;
 	
+	#ifdef __TESTADV
+	printf ("Start Change List [ %d ]\n", _iChangeCnt);
+	#endif
+	
 	// 차수 시작할 때 Change List에 있는 node에 대해서만 변화 검사 (중복 검사 방지)
 	for (i = 0; i < ChangeCnt; i++) {
 		// 변경 List에서 Node를 Pop 한다
@@ -362,6 +366,10 @@ int SearchMap (void)
 		}
 	}
 	
+	#ifdef __TESTADV
+	printf ("Changed Cell [ %d ]\n", _iChangeCnt);
+	#endif
+	
 	// 변화된 세포들에 대해 맵을 갱신하고 리스트에 추가적으로 등록한다
 	ChangeCnt = _iChangeCnt;
 	for (i = 0; i < ChangeCnt; i++) {
@@ -371,6 +379,10 @@ int SearchMap (void)
 		
 		PoolFree (pList);
 	}
+	
+	#ifdef __TESTADV
+	printf ("Next Change List [ %d ]\n", _iChangeCnt);
+	#endif
 	
 	return _iChangeCnt;
 #endif
