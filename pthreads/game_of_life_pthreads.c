@@ -9,7 +9,7 @@
 
 //#define __TESTINPUT
 //#define __TESTPOOL
-//#define __NOOUTPUT
+#define __NOOUTPUT
 
 #define __BASIC
 //#define __TESTMUTEX
@@ -836,10 +836,28 @@ int CalcDoA (int x, int y, int z)
 	// 살아있는 세포 갯수 체크
 	for (i = 0 ; i < zRep; i++) {
 		for (j = 0; j < yRep; j++) {
+			
+			if (xRep == 3) {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			} else {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			}
+			
+			/*
 			for (k = 0; k < xRep; k++) {
 				nLiv += (int)(*pMap);
 				pMap++;
 			}
+			*/
+			
 			pMap += _iMapSize - xRep;
 		}			
 		pMap += _iMapSize * (_iMapSize - yRep);
