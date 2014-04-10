@@ -11,6 +11,7 @@
 
 #define __BASIC
 //#define __TESTBASIC
+//#define __NOOUTPUT
 
 //#define __ADVANCE
 //#define __TESTADV
@@ -109,7 +110,9 @@ int main (void)
 {
 	init ();
 	LifeGame();
+#ifndef __NOOUTPUT
 	Out ();
+#endif
 	
 	Terminate ();
 	

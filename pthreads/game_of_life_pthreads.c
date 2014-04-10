@@ -9,6 +9,7 @@
 
 //#define __TESTINPUT
 //#define __TESTPOOL
+//#define __NOOUTPUT
 
 #define __BASIC
 //#define __TESTMUTEX
@@ -20,7 +21,7 @@
 #define __SPIN
 //#define __MUTEX
 
-#define __THREADMAX 32
+#define __THREADMAX 4
 #define __THREADDIV 100
 
 
@@ -95,6 +96,7 @@ int _iFinParent;
 pthread_mutex_t _mEndCnt;
 int _iEndCnt;
 int _iEndSign;
+int _MapCheckLock = 0;
 pthread_mutex_t _mMapCheck;
 char _cLoopCheck;
 
@@ -136,7 +138,9 @@ int main (void)
 	init ();
 	ThreadInit();
 	LifeGame();
+#ifndef __NOOUTPUT
 	Out ();
+#endif
 	
 	Terminate ();
 	
@@ -296,6 +300,9 @@ void ThreadInit (void)
 	// 맵 크기에 따른 Thread 개수 설정
 	n = _iMapSize / __THREADDIV;
 	_nThreads = n * n * n;
+	if (_nThreads  == 0) {
+		_nThreads = 1;
+	}
 	if (_nThreads > __THREADMAX) {
 		_nThreads = __THREADMAX;
 	}
@@ -349,11 +356,13 @@ void ThreadInit (void)
 // Child Thread의 Main Function
 void *ChildMain (void * threadN)
 {
-	int ThreadN, i, ChangeCnt;	
+	int ThreadN, i, StartArr, ChangeCnt;	
 	int * CntBuffer;
 	
 	// 자신의 thread 번호 보관
 	ThreadN = *(int *)threadN;
+	// 시작 위치 설정
+	StartArr = _iMapSize / ThreadN;
 	
 	#ifdef __TESTMUTEX
 	printf ("Child Thread %d has been created by parents\n", *(int *) threadN);
@@ -369,7 +378,8 @@ void *ChildMain (void * threadN)
 		*CntBuffer = 0;
 		ChangeCnt = 0;
 		
-		i = ThreadN;
+		i = StartArr;
+		//i = ThreadN;
 		
 		// parent가 준비를 알릴때까지 대기
 		#ifdef __SPIN
@@ -405,6 +415,8 @@ void *ChildMain (void * threadN)
 		_iEndCnt--;
 		pthread_mutex_unlock (&_mEndCnt);
 	}
+	
+	pthread_exit (NULL);
 }
 
 
@@ -544,26 +556,28 @@ int Child_LifeGame (int * StartLine)
 	
 	// Check Map에서 비어있는 Line 선택
 	pMap = _pMapCheck + *StartLine;
-	
-	pthread_mutex_lock (&_mMapCheck);
-	
-	while (*pMap == _cLoopCheck) {
-				
+		
+	while (1) {
+		if (*pMap != _cLoopCheck) {
+			pthread_mutex_lock (&_mMapCheck);
+			
+			if (*pMap != _cLoopCheck) {
+				*pMap = *pMap ^ 0x01;
+				pthread_mutex_unlock (&_mMapCheck);
+				break;
+			}
+			
+			pthread_mutex_unlock (&_mMapCheck);
+		}
+		
 		if (*StartLine < _CheckSize) {
 			pMap++;
-			*StartLine = *StartLine + 1;
-			
+			*StartLine = *StartLine + 1;			
 		} else {
-			// 더 이상 선택할 수 있는 Line이 없을 경우 -1 반환	
-			pthread_mutex_unlock (&_mMapCheck);
 			return -1;
-		}
+		}		
 	}
-	
-	*pMap = *pMap ^ 0x01;
-	
-	pthread_mutex_unlock (&_mMapCheck);
-	
+		
 	// 선택된 x Line의 Y, Z 좌표 계산
 	iY = pMap - _pMapCheck;
 	iZ = iY / _iMapSize;
