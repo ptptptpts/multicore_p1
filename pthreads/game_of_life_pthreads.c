@@ -11,6 +11,7 @@
 //#define __TESTPOOL
 
 #define __BASIC
+//#define __TESTMUTEX
 //#define __TESTBASIC
 
 //#define __ADVANCE
@@ -20,7 +21,7 @@
 //#define __MUTEX
 
 #define __THREADMAX 32
-#define __THREADDIV 50
+#define __THREADDIV 100
 
 
 ////// Struct Declaration
@@ -84,16 +85,18 @@ int _iSteps = 0;
 // Thread Value
 int _nThreads;
 pthread_t * _pThread;
-char * _iMapCheck;
+char * _pMapCheck;
 int _CheckSize;
 int * _ThreadCnt;
 
 // Thread Synchronization Value
 int _iReady;
+int _iFinParent;
 pthread_mutex_t _mEndCnt;
 int _iEndCnt;
 int _iEndSign;
 pthread_mutex_t _mMapCheck;
+char _cLoopCheck;
 
 // Map
 char * _pMap;
@@ -282,8 +285,13 @@ void init (void)
 void ThreadInit (void)
 {
 	int n, m, tid;
+	int *arr;
 	char * pChar;
 	int * pInt;
+	
+	#ifdef __TESTMUTEX
+	printf ("Initializing Threads\n");
+	#endif
 	
 	// 맵 크기에 따른 Thread 개수 설정
 	n = _iMapSize / __THREADDIV;
@@ -295,8 +303,8 @@ void ThreadInit (void)
 	_pThread = malloc (sizeof (pthread_t) * (_nThreads - 1));
 	
 	// Thread별 확인 여부 초기화
-	_iMapCheck = malloc (sizeof (char) * _iMapSize * _iMapSize);
-	pChar = _iMapCheck;
+	_pMapCheck = malloc (sizeof (char) * _iMapSize * _iMapSize);
+	pChar = _pMapCheck;
 	for (n=0; n < _iMapSize; n++) {
 		for (m = 0; m < _iMapSize; m++) {
 			*pChar = 0;
@@ -304,17 +312,19 @@ void ThreadInit (void)
 		}
 	}
 	
-	// Thread별 Change Cnt 초기화
+	// Thread별 변수 초기화
 	_ThreadCnt = malloc (sizeof (int) * _nThreads);
+	arr = malloc (sizeof (int) * _nThreads);
 	pInt = _ThreadCnt;
 	for (n = 0; n < _nThreads; n++) {
+		arr[n] = n;
 		*pInt = 0;
 		pInt++;
 	}
 	
 	// Child Thread 생성
 	for (n = 1; n < _nThreads; n++) {
-		tid = pthread_create(_pThread, NULL, ChildMain, &n);
+		tid = pthread_create(_pThread, NULL, ChildMain, &arr[n]);
 		
 		if (tid < 0) {
 			printf ("Creating Thread Failed\n");
@@ -324,9 +334,11 @@ void ThreadInit (void)
 	
 	// 변수 초기화
 	_iReady = 0; // child들에게 한 차수를 시작할 준비를 알리는데 사용
+	_iFinParent = 0; // child들에게 한 차수의 종합이 끝났음을 알리는데 사용
 	_iEndSign = 0; // child들에게 모든 연산 종료를 알리는데 사용
 	_iEndCnt = 0; // 한 차수에서 계산이 끝난 Thread의 갯수를 세는데 사용
 	_CheckSize = _iMapSize * _iMapSize;
+	_cLoopCheck = 0; // 매 차수에서 Check Map에서 확인할 값
 	
 	// Mutex 초기화
 	pthread_mutex_init (&_mEndCnt, NULL); // Initializing Mutex which synchronize the End count
@@ -337,26 +349,60 @@ void ThreadInit (void)
 // Child Thread의 Main Function
 void *ChildMain (void * threadN)
 {
-	int ThreadN;	
-		
+	int ThreadN, i, ChangeCnt;	
+	int * CntBuffer;
+	
+	// 자신의 thread 번호 보관
+	ThreadN = *(int *)threadN;
+	
+	#ifdef __TESTMUTEX
+	printf ("Child Thread %d has been created by parents\n", *(int *) threadN);
+	#endif
+	
+	CntBuffer = _ThreadCnt + *(int *)threadN;
+	
 	// lifegame 시작
 	// Parent가 종료를 알릴때까지 계속 작동
-	while ( _iEndCnt != 1) {
+	while ( _iEndSign != 1) {
+		
+		// Thread별로 변수 준비
+		*CntBuffer = 0;
+		ChangeCnt = 0;
+		
+		i = ThreadN;
 		
 		// parent가 준비를 알릴때까지 대기
 		#ifdef __SPIN
 		while (_iReady != 1) continue;
 		#endif
 				
-		// 자신의 thread 번호 입력
-		ThreadN = *(int *)threadN;
-				
 		// 더 이상 계산이 없을 때까지 이번 차수 계산
-		while (Child_LifeGame(&ThreadN) != -1);
+		while (ChangeCnt >= 0) {
+			*CntBuffer += ChangeCnt;
+			ChangeCnt = Child_LifeGame (&i);			
+			
+			#ifdef __TESTMUTEX
+			printf ("Thread [ %d ] :: Line [ %d ] Change counter [ %d ]\n", ThreadN, i, ChangeCnt);
+			#endif
+		}
 		
 		// 종료 카운트 증가
 		pthread_mutex_lock (&_mEndCnt);
 		_iEndCnt++;
+		pthread_mutex_unlock (&_mEndCnt);
+		
+		#ifdef __TESTMUTEX
+		printf ("Thread %d finish calculate [ %d ]\n", ThreadN, i);
+		#endif
+		
+		// 종합이 완료될 때까지 대기
+		#ifdef __SPIN
+		while (_iFinParent != 1) ;
+		#endif
+		
+		// 종료 카운트 감소하고 준비단계로 이동
+		pthread_mutex_lock (&_mEndCnt);
+		_iEndCnt--;
 		pthread_mutex_unlock (&_mEndCnt);
 	}
 }
@@ -365,13 +411,13 @@ void *ChildMain (void * threadN)
 // 입력된 차수만큼 Life Game을 실행한다
 void LifeGame (void)
 {
-	int i;
+	int i, j, ThreadN, *pTmp;
 	double time;
 	struct timeval lt, ll;
 		
 	#ifdef __BASIC
 	char * ppTmp;
-	int ChangeCnt;
+	int ChangeCnt, SumChangeCnt;
 	#endif
 	
 	#ifdef __TESTBASIC
@@ -387,14 +433,52 @@ void LifeGame (void)
 		printf ("%dth Loop\n", i);
 		#endif
 		
-		// Wake up all threads
-		
+		// 한 세대를 돌기 전에 변수 준비
 		_iEndCnt = 0;
-		ChangeCnt = SearchMap();
+		_iFinParent = 0;
+		_cLoopCheck = _cLoopCheck ^ 0x01;
+		SumChangeCnt = 0;
+		ChangeCnt = 0;
 		
+		// 준비 완료 설정
+		_iReady = 1;
+		
+		#ifdef __TESTMUTEX
+		printf ("Parent thread calculate Start\n");
+		#endif
+		
+		// 자신의 thread 번호 입력
+		ThreadN = 0;
+				
+		// 더 이상 계산이 없을 때까지 이번 차수 계산
+		while (ChangeCnt >= 0) {
+			SumChangeCnt += ChangeCnt;
+			ChangeCnt = Child_LifeGame (&ThreadN);
+			
+			#ifdef __TESTMUTEX
+			printf ("Thread [ 0 ] :: Line [ %d ] Change counter [ %d ]\n", ThreadN, ChangeCnt);
+			#endif
+		};
+		
+		// 종료 카운트 증가
+		pthread_mutex_lock (&_mEndCnt);
+		_iEndCnt++;
+		pthread_mutex_unlock (&_mEndCnt);
+			
+		#ifdef __TESTMUTEX
+		printf ("Parent thread finish calculate\n");
+		#endif
+			
 		// 모든 Thread 완료 대기
+		#ifdef __SPIN
+		while (_iEndCnt != _nThreads);
+		#endif
 		
+		#ifdef __TESTMUTEX
+		printf ("All threads finish Calculate\n");
+		#endif
 		
+		// 다음 세대 맵과 현재 세대 맵 교체
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
 		_ppNMap = ppTmp;
@@ -404,8 +488,22 @@ void LifeGame (void)
 		_ppNCMap = ppTmp;
 		
 		// 모든 Thread의 Change Cnt 종합
+		pTmp = _ThreadCnt;
+		for (j=1; j < _nThreads; j++) {
+			SumChangeCnt += *pTmp;
+			pTmp++;
+		}
 		
-		if (ChangeCnt == 0) {
+		// 종료 완료 설정
+		_iReady = 0;
+		_iFinParent = 1;
+		
+		// 모든 child가 준비상태로 돌아갈때까지 대기
+		#ifdef __SPIN
+		while (_iEndCnt != 1); // Parent 제외한 모든 Child가 준비상태로 전환된 것 확인
+		#endif
+		
+		if (SumChangeCnt == 0) {
 			break;
 		}
 		#endif
@@ -418,6 +516,9 @@ void LifeGame (void)
 		}
 		#endif
 	}
+	
+	// Child에게 종료 알림
+	_iEndSign = 1;
 	
 	gettimeofday(&ll, NULL);
 	time = (double)(ll.tv_sec - lt.tv_sec) + (double)(ll.tv_usec - lt.tv_usec) / 1000000.0;
@@ -433,25 +534,38 @@ int Child_LifeGame (int * StartLine)
 	int iZ, iY, i, iOffset;
 	int ChangeCnt = 0;
 	
+	if (*StartLine >= _CheckSize) {
+		return -1;
+	}
+	
+	#ifdef __TESTMUTEX
+	printf ("Searching at [ %d ] Total [ %d ] \n", *StartLine, _CheckSize);
+	#endif
+	
 	// Check Map에서 비어있는 Line 선택
-	pMap = _iMapCheck + *StartLine;
-	i = *StartLine;
+	pMap = _pMapCheck + *StartLine;
 	
 	pthread_mutex_lock (&_mMapCheck);
-	while (*pMap != 0) {
-		if (i < _CheckSize) {
+	
+	while (*pMap == _cLoopCheck) {
+				
+		if (*StartLine < _CheckSize) {
 			pMap++;
-			i++;
+			*StartLine = *StartLine + 1;
 			
 		} else {
 			// 더 이상 선택할 수 있는 Line이 없을 경우 -1 반환	
+			pthread_mutex_unlock (&_mMapCheck);
 			return -1;
 		}
 	}
+	
+	*pMap = *pMap ^ 0x01;
+	
 	pthread_mutex_unlock (&_mMapCheck);
 	
 	// 선택된 x Line의 Y, Z 좌표 계산
-	iY = pMap - _iMapCheck;
+	iY = pMap - _pMapCheck;
 	iZ = iY / _iMapSize;
 	iY = iY % _iMapSize;
 		
