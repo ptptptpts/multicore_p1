@@ -835,7 +835,21 @@ int CalcDoA (int x, int y, int z)
 	
 	// 살아있는 세포 갯수 체크
 	for (i = 0 ; i < zRep; i++) {
-		for (j = 0; j < yRep; j++) {
+		if (yRep == 3) {
+			if (xRep == 3) {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			} else {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			}						
+			pMap += _iMapSize - xRep;
 			
 			if (xRep == 3) {
 				nLiv += *pMap;
@@ -849,15 +863,52 @@ int CalcDoA (int x, int y, int z)
 				pMap++;
 				nLiv += *pMap;
 				pMap++;
-			}
+			}						
+			pMap += _iMapSize - xRep;
 			
-			/*
-			for (k = 0; k < xRep; k++) {
-				nLiv += (int)(*pMap);
+			if (xRep == 3) {
+				nLiv += *pMap;
 				pMap++;
-			}
-			*/
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			} else {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			}						
+			pMap += _iMapSize - xRep;
+		} else {
+			if (xRep == 3) {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			} else {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			}						
+			pMap += _iMapSize - xRep;
 			
+			if (xRep == 3) {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			} else {
+				nLiv += *pMap;
+				pMap++;
+				nLiv += *pMap;
+				pMap++;
+			}						
 			pMap += _iMapSize - xRep;
 		}			
 		pMap += _iMapSize * (_iMapSize - yRep);
