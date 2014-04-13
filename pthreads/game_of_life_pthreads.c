@@ -9,7 +9,7 @@
 
 //#define __TESTINPUT
 //#define __TESTPOOL
-#define __NOOUTPUT
+//#define __NOOUTPUT
 
 #define __BASIC
 //#define __TESTMUTEX
@@ -309,7 +309,14 @@ void ThreadInit (void)
 	
 	_pThread = malloc (sizeof (pthread_t) * (_nThreads - 1));
 	
-	// Thread별 확인 여부 초기화
+	// 검사 체크 맵 초기화
+	_pMapCheck = malloc (sizeof (char) * _iMapSize);
+	pChar = _pMapCheck;
+	for (n=0; n < _iMapSize; n++) {
+		*pChar = 0;
+		pChar++;
+	}
+	/*
 	_pMapCheck = malloc (sizeof (char) * _iMapSize * _iMapSize);
 	pChar = _pMapCheck;
 	for (n=0; n < _iMapSize; n++) {
@@ -318,6 +325,7 @@ void ThreadInit (void)
 			pChar++;
 		}
 	}
+	*/
 	
 	// Thread별 변수 초기화
 	_ThreadCnt = malloc (sizeof (int) * _nThreads);
@@ -344,7 +352,7 @@ void ThreadInit (void)
 	_iFinParent = 0; // child들에게 한 차수의 종합이 끝났음을 알리는데 사용
 	_iEndSign = 0; // child들에게 모든 연산 종료를 알리는데 사용
 	_iEndCnt = 0; // 한 차수에서 계산이 끝난 Thread의 갯수를 세는데 사용
-	_CheckSize = _iMapSize * _iMapSize;
+	_CheckSize = _iMapSize;
 	_cLoopCheck = 0; // 매 차수에서 Check Map에서 확인할 값
 	
 	// Mutex 초기화
@@ -362,7 +370,7 @@ void *ChildMain (void * threadN)
 	// 자신의 thread 번호 보관
 	ThreadN = *(int *)threadN;
 	// 시작 위치 설정
-	StartArr = _iMapSize / ThreadN;
+	//StartArr = _iMapSize / ThreadN;
 	
 	#ifdef __TESTMUTEX
 	printf ("Child Thread %d has been created by parents\n", *(int *) threadN);
@@ -378,8 +386,8 @@ void *ChildMain (void * threadN)
 		*CntBuffer = 0;
 		ChangeCnt = 0;
 		
-		i = StartArr;
-		//i = ThreadN;
+		//i = StartArr;
+		i = ThreadN;
 		
 		// parent가 준비를 알릴때까지 대기
 		#ifdef __SPIN
@@ -555,14 +563,13 @@ int Child_LifeGame (int * StartLine)
 	#endif
 	
 	// Check Map에서 비어있는 Line 선택
-	pMap = _pMapCheck + *StartLine;
-		
+	pMap = _pMapCheck + *StartLine;		
 	while (1) {
 		if (*pMap != _cLoopCheck) {
 			pthread_mutex_lock (&_mMapCheck);
 			
 			if (*pMap != _cLoopCheck) {
-				*pMap = *pMap ^ 0x01;
+				*pMap = _cLoopCheck;
 				pthread_mutex_unlock (&_mMapCheck);
 				break;
 			}
@@ -570,14 +577,53 @@ int Child_LifeGame (int * StartLine)
 			pthread_mutex_unlock (&_mMapCheck);
 		}
 		
-		if (*StartLine < _CheckSize) {
-			pMap++;
-			*StartLine = *StartLine + 1;			
-		} else {
-			return -1;
-		}		
-	}
+		pMap++;
+		*StartLine =  *StartLine + 1;
 		
+		if (*StartLine >= _CheckSize) {
+			return -1;
+		}	
+	}
+	
+#ifdef __TESTMUTEX
+	printf ("Select [ %d ] th Line of Total [ %d ] Lines\n", *StartLine, _CheckSize);
+#endif
+	
+	// 선택된 x,y plane의 Z 좌표 계산
+	iZ = pMap - _pMapCheck;
+		
+	// Map 위치 계산
+	iOffset = iZ * _iMapSize * _iMapSize;
+	pMap = _ppMap + iOffset;
+	ppNMap = _ppNMap + iOffset;
+	ppCMap = _ppCMap + iOffset;
+		
+	// 해당 Line에 있는 Cell들의 생존상태 계산
+	for (iY=0; iY < _iMapSize; iY++) {
+		for (i = 0; i < _iMapSize; i++) {
+			if (*ppCMap == 1) {
+				*ppCMap = 0; // 검사 완료 된 셀을 초기화
+					
+				if (CalcDoA (i, iY, iZ) == 1) {						
+					MakeChange (i, iY, iZ); // 변했을 경우 주위 셀을 다음 Change map에 추가
+					*ppNMap = *pMap ^ 0x01;	// 다음 상태에 반전으로 입력
+					ChangeCnt++;
+						
+				} else {
+					*ppNMap = *pMap;
+				}
+					
+			} else {
+				*ppNMap = *pMap;
+			}
+				
+			pMap++;
+			ppNMap++;
+			ppCMap++;
+		}
+	}
+	
+	/*
 	// 선택된 x Line의 Y, Z 좌표 계산
 	iY = pMap - _pMapCheck;
 	iZ = iY / _iMapSize;
@@ -611,6 +657,7 @@ int Child_LifeGame (int * StartLine)
 		ppNMap++;
 		ppCMap++;
 	}
+	*/
 	
 	return ChangeCnt;	
 }
@@ -994,17 +1041,17 @@ void MakeChange (int x, int y, int z)
 	
 	for (iz = 0; iz < zRep; iz++) {
 		for (iy = 0; iy < yRep; iy++) {
-			for (ix = 0; ix < xRep; ix++) {
-				
-				#ifdef __BASIC
+			if (xRep == 3) {
 				*pChar = 1;
-				#endif
-				#ifdef __ADVANCE
-				ChangeInsert(xStart + ix, yStart + iy, zStart + iz, pChar);
-				#endif
-				
-				pChar++;
-			}
+				*(pChar+1) = 1;
+				*(pChar+2) = 1;
+				pChar += 3;
+			} else {
+				*pChar = 1;
+				*(pChar+1) = 1;
+				pChar += 2;
+			}			
+			
 			pChar += _iMapSize - xRep;
 		}
 		pChar += _iMapSize * (_iMapSize - yRep);
