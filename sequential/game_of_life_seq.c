@@ -689,20 +689,20 @@ void MakeChange (int x, int y, int z)
 #ifdef __ADVANCE
 	pChar = _pCMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
 #endif
-	
+
 	for (iz = 0; iz < zRep; iz++) {
 		for (iy = 0; iy < yRep; iy++) {
-			for (ix = 0; ix < xRep; ix++) {
-				
-				#ifdef __BASIC
+			if (xRep == 3) {
 				*pChar = 1;
-				#endif
-				#ifdef __ADVANCE
-				ChangeInsert(xStart + ix, yStart + iy, zStart + iz, pChar);
-				#endif
-				
-				pChar++;
-			}
+				*(pChar+1) = 1;
+				*(pChar+2) = 1;
+				pChar += 3;
+			} else {
+				*pChar = 1;
+				*(pChar+1) = 1;
+				pChar += 2;
+			}			
+			
 			pChar += _iMapSize - xRep;
 		}
 		pChar += _iMapSize * (_iMapSize - yRep);
