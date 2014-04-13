@@ -20,9 +20,10 @@
 
 #define __SPIN
 //#define __MUTEX
+//#define __COND
 
 #define __THREADMAX 4
-#define __THREADDIV 100
+#define __THREADDIV 10
 
 
 ////// Struct Declaration
