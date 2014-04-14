@@ -11,7 +11,7 @@
 
 #define __BASIC
 //#define __TESTBASIC
-//#define __NOOUTPUT
+#define __NOOUTPUT
 
 //#define __ADVANCE
 //#define __TESTADV
@@ -72,6 +72,7 @@ int _iD2 = 0;
 int _iL1 = 0;
 int _iL2 = 0;
 int _iSteps = 0;
+int __THREADMAX = 0;
 
 // Map
 char * _pMap;
@@ -140,23 +141,26 @@ void init (void)
 	printf("input file :: %s\n", str);
 #endif
 	
-	str2 = strtok_r (str, " ", &tok);
+	str2 = strtok_r (str, " \n", &tok);
 	_iMapSize = atoi (str2);
 	
-	str2 = strtok_r (NULL, " ", &tok);
+	str2 = strtok_r (NULL, " \n", &tok);
 	_iD1 = atoi (str2);
 	
-	str2 = strtok_r (NULL, " ", &tok);
+	str2 = strtok_r (NULL, " \n", &tok);
 	_iD2 = atoi (str2);
 	
-	str2 = strtok_r (NULL, " ", &tok);
+	str2 = strtok_r (NULL, " \n", &tok);
 	_iL1 = atoi (str2);
 	
-	str2 = strtok_r (NULL, " ", &tok);
+	str2 = strtok_r (NULL, " \n", &tok);
 	_iL2 = atoi (str2);
 	
-	str2 = strtok_r (NULL, " ", &tok);
+	str2 = strtok_r (NULL, " \n", &tok);
 	_iSteps = atoi (str2);
+	
+	str2 = strtok_r (NULL, " \n", &tok);
+	__THREADMAX = atoi (str2);
 
 	free (str);
 
@@ -188,7 +192,7 @@ void init (void)
 			printf ("Line :: %d %d :: \n%s \n", i, j, str);
 			#endif
 						
-			for (str2 = strtok_r(str, " ", &tok); *str2 != '\n'; str2 = strtok_r(NULL, " ", &tok)) {
+			for (str2 = strtok_r(str, " \n\0", &tok); *str2 != '\n'; str2 = strtok_r(NULL, " ", &tok)) {
 				*pMap = (char)atoi (str2);
 				
 				#ifdef __TESTINPUT
@@ -321,11 +325,13 @@ void Out (void)
 	char * pMap;
 	char cTmp;
 	
-	ofp = fopen ("input.sol", "w");
+	ofp = fopen ("output.life", "w");
 	if (ofp == NULL) {
 		printf ("Output File Open Failed\n");
 		exit(-1);
 	}
+	
+	fprintf (ofp, "%d %d %d %d %d %d %d\n", _iMapSize, _iD1, _iD2, _iL1, _iL2, _iSteps, __THREADMAX);
 	
 #ifdef __BASIC
 	pMap = _ppMap;
