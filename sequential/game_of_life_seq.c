@@ -7,11 +7,8 @@
 #include <sys/time.h>
 
 //#define __TESTINPUT
-
-//#define __BASIC
-#define __EXMAP
 //#define __TESTBASIC
-#define __NOOUTPUT
+//#define __NOOUTPUT
 
 
 //===================================
@@ -58,8 +55,8 @@ int __THREADMAX = 0;
 
 // Map
 int _iExMapSize;
-char * _pExpendedMap;
-char * _pNExpendedMap;
+char * _pExpandedMap;
+char * _pNExpandedMap;
 
 char * _pMap;
 char * _pNMap;
@@ -143,13 +140,13 @@ void init (void)
 	_iExMapSize = _iMapSize + 3;
 	
 	str = malloc (sizeof (char) * _iMapSize * 3);
-	_pExpendedMap = malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
-	_pNExpendedMap =  malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
+	_pExpandedMap = malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
+	_pNExpandedMap =  malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
 	_pCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	_pNCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);	
 		
-	pMap = _pExpendedMap;
-	pCMap = _pNExpendedMap;
+	pMap = _pExpandedMap;
+	pCMap = _pNExpandedMap;
 	for (i=0; i < _iExMapSize; i++) {
 		for (j=0; j < _iExMapSize; j++) {
 			for (k=0; k < _iExMapSize / 4; k++) {
@@ -161,8 +158,8 @@ void init (void)
 		}
 	}
 		
-	_pMap = _pExpendedMap + __OFFSET_3D(1,1,1);
-	_pNMap = _pNExpendedMap + __OFFSET_3D(1,1,1);
+	_pMap = _pExpandedMap + __OFFSET_3D(1,1,1);
+	_pNMap = _pNExpandedMap + __OFFSET_3D(1,1,1);
 	pMap = _pMap;
 	pCMap = _pCMap;
 	pNCMap = _pNCMap;
@@ -214,12 +211,10 @@ void init (void)
 					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
 					
 					*pCMap = 1;
-				}
-				
+				}				
 			}			
 		}
-	}
-		
+	}		
 }
 
 
@@ -305,9 +300,8 @@ void Out (void)
 // dynamic allocation 된 memory 영역 해제
 void Terminate (void) 
 {
-
-	free (_pExpendedMap);	
-	free (_pNExpendedMap);
+	free (_pExpandedMap);	
+	free (_pNExpandedMap);
 	free (_pNCMap);
 	free (_pCMap);
 		
