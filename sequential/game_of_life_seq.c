@@ -8,17 +8,21 @@
 
 //#define __TESTINPUT
 
-#define __BASIC
+//#define __BASIC
+#define __EXMAP
 //#define __TESTBASIC
-//#define __NOOUTPUT
+#define __NOOUTPUT
 
 
 //===================================
 // macro function
 //===================================
-#define __OFFSET_3D(x, y, z)	((z * _iExMapSize + y) * _iExMapSize + x)
-#define __OFFSET_2D(y,z) 		((z * _iExMapSize + y) * _iExMapSize)
-#define __OFFSET_1D(z)		(z * _iExMapSize * _iExMapSize)
+#define __OFFSET_Y			3
+#define __OFFSET_Z			3 * _iExMapSize
+
+#define __OFFSET_3D(x, y, z)	(((z) * _iExMapSize + (y)) * _iExMapSize + (x))
+#define __OFFSET_2D(y,z) 		(((z) * _iExMapSize + (y)) * _iExMapSize)
+#define __OFFSET_1D(z)		((z) * _iExMapSize * _iExMapSize)
 //===================================
 
 
@@ -55,9 +59,10 @@ int __THREADMAX = 0;
 // Map
 int _iExMapSize;
 char * _pExpendedMap;
-char * _pMap;
+char * _pNExpendedMap;
 
-char * _pAMap;
+char * _pMap;
+char * _pNMap;
 char * _pNCMap;
 
 char * _ppMap;
@@ -77,7 +82,7 @@ int _iChangeCnt = 0;
 // Function Start
 //===================================
 int main (void)
-{
+{	
 	init ();
 	LifeGame();
 #ifndef __NOOUTPUT
@@ -135,12 +140,29 @@ void init (void)
 #endif
 	
 	// Create Map
+	_iExMapSize = _iMapSize + 3;
+	
 	str = malloc (sizeof (char) * _iMapSize * 3);
-	_pMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
-	_pAMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
+	_pExpendedMap = malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
+	_pNExpendedMap =  malloc (sizeof(char) * _iExMapSize * _iExMapSize * _iExMapSize);
 	_pCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);
 	_pNCMap = malloc (sizeof (char) * _iMapSize * _iMapSize * _iMapSize);	
 		
+	pMap = _pExpendedMap;
+	pCMap = _pNExpendedMap;
+	for (i=0; i < _iExMapSize; i++) {
+		for (j=0; j < _iExMapSize; j++) {
+			for (k=0; k < _iExMapSize / 4; k++) {
+				*pMap = 0;
+				*pCMap = 0;
+				pMap++;
+				pCMap++;
+			}
+		}
+	}
+		
+	_pMap = _pExpendedMap + __OFFSET_3D(1,1,1);
+	_pNMap = _pNExpendedMap + __OFFSET_3D(1,1,1);
 	pMap = _pMap;
 	pCMap = _pCMap;
 	pNCMap = _pNCMap;
@@ -154,31 +176,29 @@ void init (void)
 			#endif
 						
 			for (str2 = strtok_r(str, " \n\0", &tok); *str2 != '\n'; str2 = strtok_r(NULL, " ", &tok)) {
-				*pMap = (char)atoi (str2);
-				
+				*pMap = (char)atoi (str2);				
 				#ifdef __TESTINPUT
 				printf("%d ",  *pMap);
-				#endif
-				
+				#endif				
 				pMap++;
 								
 				*pCMap = 0;
 				pCMap++;
 				
-				#ifdef __BASIC
 				*pNCMap = 0;
 				pNCMap++;
-				#endif
 			}
-						
+			
+			pMap += __OFFSET_Y;
 			#ifdef __TESTINPUT
 			printf("\n");
 			#endif
 		}
+		pMap += __OFFSET_Z;
 	}
-	
+		
 	_ppMap = _pMap;
-	_ppNMap = _pAMap;
+	_ppNMap = _pNMap;
 	
 	_ppCMap = _pCMap;
 	_ppNCMap = _pNCMap;
@@ -189,21 +209,14 @@ void init (void)
 			for (k = 0; k < _iMapSize; k++) {
 				
 				// 초기 입력값에서 변화 여부를 계산
-				if (CalcDoA (k, j, i) == 1) {
-					
-					// 변화가 있는 값들만 따로 정리
+				if (CalcDoA (k, j, i) == 1) {					
+					// 변화가 필요한 값들만 따로 정리
 					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
 					
-					#ifdef __BASIC
 					*pCMap = 1;
-					#endif
-					
-					#ifdef __ADVANCE
-					ChangeInsert (k, j, i, pCMap);
-					#endif
 				}
 				
-			}
+			}			
 		}
 	}
 		
@@ -231,6 +244,10 @@ void LifeGame (void)
 		#endif
 		
 		ChangeCnt = SearchMap();
+		
+		#ifdef __TESTBASIC
+		printf ("Change Count :: %d\n", ChangeCnt);
+		#endif
 		
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
@@ -278,7 +295,9 @@ void Out (void)
 				pMap++;
 			}
 			fprintf(ofp, "\n");
+			pMap += __OFFSET_Y;
 		}
+		pMap += __OFFSET_Z;
 	}
 }
 
@@ -287,8 +306,8 @@ void Out (void)
 void Terminate (void) 
 {
 
-	free (_pMap);	
-	free (_pAMap);
+	free (_pExpendedMap);	
+	free (_pNExpendedMap);
 	free (_pNCMap);
 	free (_pCMap);
 		
@@ -331,7 +350,11 @@ int SearchMap (void)
 				ppNMap++;
 				ppCMap++;
 			}
+			ppMap += __OFFSET_Y;
+			ppNMap += __OFFSET_Y;
 		}
+		ppMap += __OFFSET_Z;
+		ppNMap += __OFFSET_Z;
 	}
 	
 	#ifdef __TESTBASIC
@@ -350,132 +373,45 @@ int CalcDoA (int x, int y, int z)
 {
 	char cell;
 	char * pMap;
+	void * pVoid;
 	int nLiv = 0;
 	int xStart, yStart, zStart, xRep, yRep, zRep;
 	int i, j, k;
+	int sum = 0;
 	
 	// 검사할 세포의 상태 로드
 	pMap = _ppMap;
-
-	pMap += (z * _iMapSize * _iMapSize) + (y * _iMapSize) + x;
-	cell = *pMap;
+	pMap += __OFFSET_3D(x,y,z);
+	cell = *pMap;			
+	pMap += __OFFSET_3D(-1, -1, -1);
 	
-	// 위치에 따른 검사 시작점과 반복 횟수 설정
-	if (x == 0) {
-		xRep = 2;
-		xStart = x;
-	} else if (x == _iMapSize-1){
-		xRep = 2;
-		xStart = x-1;
-	} else {
-		xRep = 3;
-		xStart = x-1;
-	}
-	if (y == 0) {
-		yRep = 2;
-		yStart = y;
-	} else if (y == _iMapSize-1) {
-		yRep = 2;
-		yStart = y-1;
-	} else {
-		yRep = 3;
-		yStart = y-1;
-	}
-	if (z == 0) {
-		zRep = 2;
-		zStart = z;
-	} else if (z == _iMapSize-1) {
-		zRep = 2;
-		zStart = z-1;
-	} else {
-		zRep = 3;
-		zStart = z-1;
-	}
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	pMap += _iExMapSize * (_iExMapSize - 2);
+	
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	pMap += _iExMapSize * (_iExMapSize - 2);
+	
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	pMap += _iExMapSize;
+	sum += *(int *)pMap;
+	
+	pVoid = &sum;
+	nLiv = *(char *)pVoid;
+	pVoid++;
+	nLiv += *(char *)pVoid;
+	pVoid++;
+	nLiv += *(char *)pVoid;
 		
-	// 검사 시작 위치 설정
-	pMap = _ppMap + ((zStart * _iMapSize + yStart) * _iMapSize) + xStart;
-	
-	// 살아있는 세포 갯수 체크
-	for (i = 0 ; i < zRep; i++) {
-		if (yRep == 3) {
-			if (xRep == 3) {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			} else {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			}						
-			pMap += _iMapSize - xRep;
-			
-			if (xRep == 3) {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			} else {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			}						
-			pMap += _iMapSize - xRep;
-			
-			if (xRep == 3) {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			} else {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			}						
-			pMap += _iMapSize - xRep;
-		} else {
-			if (xRep == 3) {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			} else {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			}						
-			pMap += _iMapSize - xRep;
-			
-			if (xRep == 3) {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			} else {
-				nLiv += *pMap;
-				pMap++;
-				nLiv += *pMap;
-				pMap++;
-			}						
-			pMap += _iMapSize - xRep;
-		}			
-		pMap += _iMapSize * (_iMapSize - yRep);
-	}
-	
 	// 살아있는 세포 검사
 	if (cell == 1) {
 		nLiv--;	// 자기 자신은 카운트에서 제외
@@ -494,7 +430,7 @@ int CalcDoA (int x, int y, int z)
 		} else {
 			return 0;
 		}
-	}	
+	}
 }
 
 
