@@ -10,9 +10,9 @@
 //#define __TESTINPUT
 //#define __NOOUTPUT
 
-#define __BASIC
 //#define __TESTMUTEX
 //#define __TESTBASIC
+//#define __TESTCNT
 
 #define __SPIN
 //#define __MUTEX
@@ -443,11 +443,7 @@ void LifeGame (void)
 		#ifdef __SPIN
 		while (_iEndCnt != _nThreads);
 		#endif
-		
-		#ifdef __TESTMUTEX
-		printf ("All threads finish Calculate\n");
-		#endif
-		
+				
 		// 다음 세대 맵과 현재 세대 맵 교체
 		ppTmp = _ppMap;
 		_ppMap = _ppNMap;
@@ -460,13 +456,17 @@ void LifeGame (void)
 		// 모든 Thread의 Change Cnt 종합
 		pTmp = _ThreadCnt;
 		for (j=1; j < _nThreads; j++) {
-			SumChangeCnt += *pTmp;
 			pTmp++;
+			SumChangeCnt += *pTmp;
 		}
 		
 		// 종료 완료 설정
 		_iReady = 0;
 		_iFinParent = 1;
+		
+		#ifdef __TESTCNT
+		printf ("%d th Change Count :: %d\n", i+1, SumChangeCnt);
+		#endif
 		
 		// 모든 child가 준비상태로 돌아갈때까지 대기
 		#ifdef __SPIN
