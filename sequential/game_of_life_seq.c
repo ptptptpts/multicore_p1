@@ -202,17 +202,22 @@ void init (void)
 	_ppNCMap = _pNCMap;
 		
 	// Calculate which cell can be changed the status
+	pCMap = _pCMap;
 	for (i = 0; i < _iMapSize; i++) {
 		for (j = 0; j < _iMapSize; j++) {
 			for (k = 0; k < _iMapSize; k++) {
 				
+				/*
 				// 초기 입력값에서 변화 여부를 계산
 				if (CalcDoA (k, j, i) == 1) {					
 					// 변화가 필요한 값들만 따로 정리
 					pCMap = _pCMap + ((i * _iMapSize + j) * _iMapSize) + k;
 					
 					*pCMap = 1;
-				}				
+				}
+				*/
+				*pCMap = 1;
+				pCMap++;				
 			}			
 		}
 	}		
