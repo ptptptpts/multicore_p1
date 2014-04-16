@@ -8,6 +8,7 @@
 
 //#define __TESTINPUT
 //#define __TESTBASIC
+//#define __TESTCNT
 //#define __NOOUTPUT
 
 
@@ -240,8 +241,8 @@ void LifeGame (void)
 		
 		ChangeCnt = SearchMap();
 		
-		#ifdef __TESTBASIC
-		printf ("Change Count :: %d\n", ChangeCnt);
+		#ifdef __TESTCNT
+		printf ("%d th Change Count :: %d\n", i+1, ChangeCnt);
 		#endif
 		
 		ppTmp = _ppMap;
