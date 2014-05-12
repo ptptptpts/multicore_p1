@@ -15,6 +15,11 @@
 //===================================
 // macro function
 //===================================
+#define __LIVE					0b10000000
+
+#define __DEAD				0b00000000
+#define __mDEAD				0b01111111
+
 #define __OFFSET_Y			3
 #define __OFFSET_Z			3 * _iExMapSize
 
@@ -174,7 +179,7 @@ void init (void)
 			#endif
 						
 			for (str2 = strtok_r(str, " \n\0", &tok); *str2 != '\n'; str2 = strtok_r(NULL, " ", &tok)) {
-				*pMap = (char)atoi (str2);				
+				*pMap = (char)atoi (str2);		
 				#ifdef __TESTINPUT
 				printf("%d ",  *pMap);
 				#endif				
@@ -278,11 +283,15 @@ void Out (void)
 	char * pMap;
 	char cTmp;
 	
+	/*
 	ofp = fopen ("output.life", "w");
 	if (ofp == NULL) {
 		printf ("Output File Open Failed\n");
 		exit(-1);
 	}
+	*/
+	
+	ofp = stdout;
 	
 	fprintf (ofp, "%d %d %d %d %d %d %d\n", _iMapSize, _iD1, _iD2, _iL1, _iL2, _iSteps, __THREADMAX);
 	
